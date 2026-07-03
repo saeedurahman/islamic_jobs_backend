@@ -105,3 +105,22 @@ class SavedJobAPITests(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIs(response.data['is_saved'], False)
+
+    def test_removed_job_is_hidden_from_public_detail_but_closed_and_filled_remain_visible(self):
+        self.job.status = JobPosting.Status.REMOVED
+        self.job.save(update_fields=['status'])
+        self.other_job.status = JobPosting.Status.CLOSED
+        self.other_job.save(update_fields=['status'])
+        filled_job = self._create_job('Filled Job')
+        filled_job.status = JobPosting.Status.FILLED
+        filled_job.save(update_fields=['status'])
+
+        removed_response = self.client.get(reverse('job-detail', kwargs={'pk': self.job.pk}))
+        closed_response = self.client.get(reverse('job-detail', kwargs={'pk': self.other_job.pk}))
+        filled_response = self.client.get(reverse('job-detail', kwargs={'pk': filled_job.pk}))
+
+        self.assertEqual(removed_response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(closed_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(closed_response.data['status'], JobPosting.Status.CLOSED)
+        self.assertEqual(filled_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(filled_response.data['status'], JobPosting.Status.FILLED)

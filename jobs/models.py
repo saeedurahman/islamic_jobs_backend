@@ -24,6 +24,7 @@ class JobPosting(models.Model):
         ACTIVE = 'active', 'Active'
         CLOSED = 'closed', 'Closed'
         FILLED = 'filled', 'Filled'
+        REMOVED = 'removed', 'Removed'
 
     employer = models.ForeignKey(
         'employers.Employer',

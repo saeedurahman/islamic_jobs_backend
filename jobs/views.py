@@ -90,6 +90,8 @@ class JobDetailView(generics.RetrieveUpdateDestroyAPIView):
             JobPosting.objects.select_related(*JOB_SELECT_RELATED)
             .prefetch_related(*JOB_PREFETCH)
         )
+        if self.request.method == 'GET':
+            queryset = queryset.exclude(status=JobPosting.Status.REMOVED)
         return with_saved_status(queryset, self.request.user)
 
 

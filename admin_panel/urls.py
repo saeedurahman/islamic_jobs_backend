@@ -5,7 +5,9 @@ from .views import (
     AdminEmployerDetailView,
     AdminEmployerListView,
     AdminEmployerVerifyView,
+    AdminJobHardDeleteView,
     AdminJobListView,
+    AdminJobRemoveView,
     AdminProfileDetailView,
     AdminProfileListView,
     AdminProfileVerifyView,
@@ -22,6 +24,8 @@ urlpatterns = [
     path('employers/<int:pk>/', AdminEmployerDetailView.as_view(), name='admin-employer-detail'),
     path('employers/<int:pk>/verify/', AdminEmployerVerifyView.as_view(), name='admin-employer-verify'),
     path('jobs/', AdminJobListView.as_view(), name='admin-job-list'),
+    path('jobs/<int:pk>/remove/', AdminJobRemoveView.as_view(), name='admin-job-remove'),
+    path('jobs/<int:pk>/', AdminJobHardDeleteView.as_view(), name='admin-job-hard-delete'),
     path('users/', AdminUserListView.as_view(), name='admin-user-list'),
     path('stats/', AdminStatsView.as_view(), name='admin-stats'),
 ]

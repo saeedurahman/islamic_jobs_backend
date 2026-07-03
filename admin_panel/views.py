@@ -148,6 +148,37 @@ class AdminJobListView(generics.ListAPIView):
         )
 
 
+class AdminJobRemoveView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def patch(self, request, pk):
+        job = get_object_or_404(JobPosting.objects.select_related('employer'), pk=pk)
+        if job.status == JobPosting.Status.REMOVED:
+            return Response(
+                {'detail': 'Job is already removed.', 'status': job.status},
+                status=status.HTTP_200_OK,
+            )
+
+        job.status = JobPosting.Status.REMOVED
+        job.save(update_fields=['status'])
+        output = AdminJobListSerializer(job, context={'request': request})
+        return Response(
+            {
+                'detail': 'Job removed from public view.',
+                'job': output.data,
+            }
+        )
+
+
+class AdminJobHardDeleteView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def delete(self, request, pk):
+        job = get_object_or_404(JobPosting, pk=pk)
+        job.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class AdminUserListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     serializer_class = AdminUserListSerializer
