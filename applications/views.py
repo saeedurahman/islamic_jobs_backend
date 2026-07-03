@@ -3,8 +3,10 @@ from rest_framework import generics, status
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from deeni_jobs.throttles import ApplicationCreateRateThrottle
 from employers.permissions import IsEmployer
 from jobs.models import JobPosting
 from profiles.permissions import IsJobSeeker
@@ -37,6 +39,7 @@ def _applications_with_applicant_profile():
 class ApplicationCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated, IsJobSeeker]
     serializer_class = ApplicationCreateSerializer
+    throttle_classes = [ApplicationCreateRateThrottle, UserRateThrottle]
 
     def perform_create(self, serializer):
         application = serializer.save()

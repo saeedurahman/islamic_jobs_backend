@@ -1,10 +1,17 @@
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
+
+from deeni_jobs.throttles import (
+    LoginRateThrottle,
+    PasswordResetRequestRateThrottle,
+    RegisterRateThrottle,
+)
 
 from .serializers import (
     LoginSerializer,
@@ -28,6 +35,7 @@ def get_tokens_for_user(user):
 class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     serializer_class = RegisterSerializer
+    throttle_classes = [RegisterRateThrottle, AnonRateThrottle]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -45,6 +53,7 @@ class RegisterView(generics.CreateAPIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle, AnonRateThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data, context={'request': request})
@@ -62,6 +71,7 @@ class LoginView(APIView):
 
 class PasswordResetRequestView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetRequestRateThrottle, AnonRateThrottle]
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)

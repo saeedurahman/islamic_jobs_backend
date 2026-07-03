@@ -1,8 +1,9 @@
 from unittest.mock import Mock, patch
 
-from django.core.mail import EmailMessage
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
+from django.core.cache import cache
+from django.core.mail import EmailMessage
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils.encoding import force_bytes
@@ -17,6 +18,7 @@ from .serializers import PASSWORD_RESET_INVALID_MESSAGE, PASSWORD_RESET_SUCCESS_
 
 class PasswordResetTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.client = APIClient()
         self.user = User.objects.create_user(
             username='seeker',
@@ -131,6 +133,37 @@ class PasswordResetTests(TestCase):
         self.assertEqual(phone_response.status_code, status.HTTP_200_OK)
         self.assertIn('tokens', email_response.data)
         self.assertIn('tokens', phone_response.data)
+
+
+class AuthThrottleTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+
+    def test_login_throttle_blocks_sixth_attempt_from_same_ip(self):
+        url = reverse('auth-login')
+        payload = {'identifier': 'missing@example.com', 'password': 'WrongPassword123!'}
+
+        responses = [self.client.post(url, payload, format='json') for _ in range(6)]
+
+        self.assertEqual(
+            [response.status_code for response in responses[:5]],
+            [status.HTTP_400_BAD_REQUEST] * 5,
+        )
+        self.assertEqual(responses[5].status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn('Request was throttled.', str(responses[5].data['detail']))
+
+    def test_password_reset_request_throttle_blocks_fourth_attempt_from_same_ip(self):
+        url = reverse('auth-password-reset-request')
+        payload = {'identifier': 'missing@example.com'}
+
+        responses = [self.client.post(url, payload, format='json') for _ in range(4)]
+
+        self.assertEqual(
+            [response.status_code for response in responses[:3]],
+            [status.HTTP_200_OK] * 3,
+        )
+        self.assertEqual(responses[3].status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
 
 class ResendAPIBackendTests(TestCase):
