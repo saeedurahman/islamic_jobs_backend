@@ -203,16 +203,12 @@ if not DEBUG:
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@islamicjobz.com')
 
-# Email - console backend for local development, SMTP for production.
+# Email - console backend for local development, Resend API for production.
 USE_REAL_EMAIL = config('USE_REAL_EMAIL', default=False, cast=bool)
 
 if USE_REAL_EMAIL:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = config('EMAIL_HOST', default='smtp.resend.com')
-    EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-    EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='resend')
-    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
-    EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_BACKEND = 'accounts.email_backend.ResendAPIBackend'
+    RESEND_API_KEY = config('RESEND_API_KEY')
 else:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 

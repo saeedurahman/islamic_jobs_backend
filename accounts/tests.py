@@ -1,3 +1,6 @@
+from unittest.mock import Mock, patch
+
+from django.core.mail import EmailMessage
 from django.contrib.auth.tokens import default_token_generator
 from django.core import mail
 from django.test import TestCase, override_settings
@@ -7,6 +10,7 @@ from django.utils.http import urlsafe_base64_encode
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from .email_backend import ResendAPIBackend
 from .models import User
 from .serializers import PASSWORD_RESET_INVALID_MESSAGE, PASSWORD_RESET_SUCCESS_MESSAGE
 
@@ -127,3 +131,55 @@ class PasswordResetTests(TestCase):
         self.assertEqual(phone_response.status_code, status.HTTP_200_OK)
         self.assertIn('tokens', email_response.data)
         self.assertIn('tokens', phone_response.data)
+
+
+class ResendAPIBackendTests(TestCase):
+    @override_settings(RESEND_API_KEY='re_test_key')
+    @patch('accounts.email_backend.requests.post')
+    def test_resend_api_backend_sends_django_email_message(self, mock_post):
+        response = Mock()
+        response.raise_for_status.return_value = None
+        mock_post.return_value = response
+
+        backend = ResendAPIBackend()
+        email = EmailMessage(
+            subject='Test email',
+            body='Plain text body',
+            from_email='noreply@islamicjobz.com',
+            to=['recipient@example.com'],
+        )
+
+        sent_count = backend.send_messages([email])
+
+        self.assertEqual(sent_count, 1)
+        mock_post.assert_called_once_with(
+            'https://api.resend.com/emails',
+            json={
+                'from': 'noreply@islamicjobz.com',
+                'to': ['recipient@example.com'],
+                'subject': 'Test email',
+                'text': 'Plain text body',
+            },
+            headers={
+                'Authorization': 'Bearer re_test_key',
+                'Content-Type': 'application/json',
+                'User-Agent': 'IslamicJobsDjango/1.0',
+            },
+            timeout=10,
+        )
+
+    @override_settings(RESEND_API_KEY='re_test_key')
+    @patch('accounts.email_backend.requests.post')
+    def test_resend_api_backend_honors_fail_silently(self, mock_post):
+        mock_post.side_effect = RuntimeError('network failed')
+        backend = ResendAPIBackend(fail_silently=True)
+        email = EmailMessage(
+            subject='Test email',
+            body='Plain text body',
+            from_email='noreply@islamicjobz.com',
+            to=['recipient@example.com'],
+        )
+
+        sent_count = backend.send_messages([email])
+
+        self.assertEqual(sent_count, 0)
