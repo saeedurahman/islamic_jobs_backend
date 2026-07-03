@@ -1,7 +1,8 @@
-from django.db.models import Count, Q
+from django.db.models import BooleanField, Count, Exists, OuterRef, Q, Value
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.exceptions import NotFound
 from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -10,9 +11,10 @@ from rest_framework.views import APIView
 
 from employers.permissions import IsEmployer
 from profiles.models import Profile
+from profiles.permissions import IsJobSeeker
 
 from .filters import JobPostingFilter
-from .models import JobPosting
+from .models import JobPosting, SavedJob
 from .pagination import JobPagination
 from .permissions import IsJobOwner
 from .serializers import JobListSerializer, JobOwnerSerializer, JobPublicSerializer
@@ -36,6 +38,16 @@ def active_jobs_queryset():
     )
 
 
+def with_saved_status(queryset, user):
+    if user.is_authenticated:
+        return queryset.annotate(
+            is_saved=Exists(
+                SavedJob.objects.filter(user=user, job_id=OuterRef('pk'))
+            )
+        )
+    return queryset.annotate(is_saved=Value(False, output_field=BooleanField()))
+
+
 class JobListCreateView(generics.ListCreateAPIView):
     pagination_class = JobPagination
     filterset_class = JobPostingFilter
@@ -53,7 +65,7 @@ class JobListCreateView(generics.ListCreateAPIView):
         return JobListSerializer
 
     def get_queryset(self):
-        return active_jobs_queryset()
+        return with_saved_status(active_jobs_queryset(), self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(employer=self.request.user.employer_profile)
@@ -74,9 +86,51 @@ class JobDetailView(generics.RetrieveUpdateDestroyAPIView):
         return JobOwnerSerializer
 
     def get_queryset(self):
-        return (
+        queryset = (
             JobPosting.objects.select_related(*JOB_SELECT_RELATED)
             .prefetch_related(*JOB_PREFETCH)
+        )
+        return with_saved_status(queryset, self.request.user)
+
+
+class SavedJobToggleView(APIView):
+    permission_classes = [IsAuthenticated, IsJobSeeker]
+
+    def post(self, request, pk):
+        job = get_object_or_404(JobPosting, pk=pk)
+        _, created = SavedJob.objects.get_or_create(user=request.user, job=job)
+        if created:
+            return Response(
+                {'detail': 'Job saved.', 'is_saved': True},
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(
+            {'detail': 'Job is already saved.', 'is_saved': True},
+            status=status.HTTP_200_OK,
+        )
+
+    def delete(self, request, pk):
+        deleted_count, _ = SavedJob.objects.filter(user=request.user, job_id=pk).delete()
+        if deleted_count:
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {'detail': 'Job was not saved.', 'is_saved': False},
+            status=status.HTTP_200_OK,
+        )
+
+
+class SavedJobsListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated, IsJobSeeker]
+    serializer_class = JobListSerializer
+    pagination_class = JobPagination
+
+    def get_queryset(self):
+        return (
+            JobPosting.objects.filter(saved_by__user=self.request.user)
+            .select_related(*JOB_SELECT_RELATED)
+            .prefetch_related(*JOB_PREFETCH)
+            .annotate(is_saved=Value(True, output_field=BooleanField()))
+            .order_by('-saved_by__created_at')
         )
 
 

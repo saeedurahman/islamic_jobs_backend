@@ -108,6 +108,7 @@ class JobPublicSerializer(serializers.ModelSerializer):
     district_name = serializers.SerializerMethodField()
     employer = JobPublicEmployerSummarySerializer(read_only=True)
     required_languages = LanguageSerializer(many=True, read_only=True)
+    is_saved = serializers.SerializerMethodField()
 
     class Meta:
         model = JobPosting
@@ -131,6 +132,7 @@ class JobPublicSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
             'expires_at',
+            'is_saved',
         ]
 
     def get_province_name(self, obj):
@@ -142,10 +144,14 @@ class JobPublicSerializer(serializers.ModelSerializer):
     def get_district_name(self, obj):
         return obj.district.name if obj.district else None
 
+    def get_is_saved(self, obj):
+        return bool(getattr(obj, 'is_saved', False))
+
 
 class JobListSerializer(serializers.ModelSerializer):
     province_name = serializers.SerializerMethodField()
     city_name = serializers.SerializerMethodField()
+    is_saved = serializers.SerializerMethodField()
 
     class Meta:
         model = JobPosting
@@ -160,6 +166,7 @@ class JobListSerializer(serializers.ModelSerializer):
             'experience_required',
             'status',
             'created_at',
+            'is_saved',
         ]
 
     def get_province_name(self, obj):
@@ -167,3 +174,6 @@ class JobListSerializer(serializers.ModelSerializer):
 
     def get_city_name(self, obj):
         return obj.city.name if obj.city else None
+
+    def get_is_saved(self, obj):
+        return bool(getattr(obj, 'is_saved', False))

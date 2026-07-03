@@ -1,5 +1,6 @@
-from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import models
 
 from profiles.models import Language, Profile
 
@@ -101,3 +102,24 @@ class JobPosting(models.Model):
             raise ValidationError(
                 {'salary_max': 'Maximum salary must be greater than or equal to minimum salary.'}
             )
+
+
+class SavedJob(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='saved_jobs',
+    )
+    job = models.ForeignKey(
+        JobPosting,
+        on_delete=models.CASCADE,
+        related_name='saved_by',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'job')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user} saved {self.job}'
