@@ -1,0 +1,27 @@
+from django.urls import path
+
+from .views import (
+    AdminCreateEmployerAndJobView,
+    AdminEmployerDetailView,
+    AdminEmployerListView,
+    AdminEmployerVerifyView,
+    AdminJobListView,
+    AdminProfileDetailView,
+    AdminProfileListView,
+    AdminProfileVerifyView,
+    AdminStatsView,
+    AdminUserListView,
+)
+
+urlpatterns = [
+    path('create-employer-and-job/', AdminCreateEmployerAndJobView.as_view(), name='admin-create-employer-and-job'),
+    path('profiles/', AdminProfileListView.as_view(), name='admin-profile-list'),
+    path('profiles/<int:pk>/', AdminProfileDetailView.as_view(), name='admin-profile-detail'),
+    path('profiles/<int:pk>/verify/', AdminProfileVerifyView.as_view(), name='admin-profile-verify'),
+    path('employers/', AdminEmployerListView.as_view(), name='admin-employer-list'),
+    path('employers/<int:pk>/', AdminEmployerDetailView.as_view(), name='admin-employer-detail'),
+    path('employers/<int:pk>/verify/', AdminEmployerVerifyView.as_view(), name='admin-employer-verify'),
+    path('jobs/', AdminJobListView.as_view(), name='admin-job-list'),
+    path('users/', AdminUserListView.as_view(), name='admin-user-list'),
+    path('stats/', AdminStatsView.as_view(), name='admin-stats'),
+]
