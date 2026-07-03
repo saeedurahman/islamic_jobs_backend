@@ -5,6 +5,7 @@ Django settings for deeni_jobs project.
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from decouple import Csv, config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -73,16 +75,26 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'deeni_jobs.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+DATABASE_URL = config('DATABASE_URL', default='')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=not DEBUG,
+        ),
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -98,6 +110,10 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+_WHITENOISE_STATICFILES_STORAGE = {
+    'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+}
 
 USE_R2_STORAGE = config('USE_R2_STORAGE', default=False, cast=bool)
 
@@ -124,14 +140,18 @@ if USE_R2_STORAGE:
                 'addressing_style': 'path',
             },
         },
-        'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
-        },
+        'staticfiles': _WHITENOISE_STATICFILES_STORAGE,
     }
     MEDIA_URL = f'https://{_R2_PUBLIC_DOMAIN}/'
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
+    STORAGES = {
+        'default': {
+            'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        },
+        'staticfiles': _WHITENOISE_STATICFILES_STORAGE,
+    }
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -168,6 +188,17 @@ CORS_ALLOWED_ORIGINS = [
     'https://islamicjobz.com',
     'https://www.islamicjobz.com',
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://islamicjobz.com',
+    'https://www.islamicjobz.com',
+]
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Email (console backend for development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
