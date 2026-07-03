@@ -277,6 +277,7 @@ class MuftiCourse(models.Model):
         FIQH = 'fiqh', 'Fiqh'
         TAFSIR = 'tafsir', 'Tafsir'
         ARABIC = 'arabic', 'Arabic'
+        IFTA = 'ifta', 'Ifta'
         OTHER = 'other', 'Other'
 
     profile = models.ForeignKey(
