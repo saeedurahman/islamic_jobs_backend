@@ -32,6 +32,7 @@ class AdminProfileDetailSerializer(ProfilePublicSerializer):
             'passport_number',
             'verification_document',
             'is_public',
+            'is_disabled',
             'profile_completion_percentage',
         ]
 
@@ -115,6 +116,7 @@ class AdminProfileListSerializer(serializers.ModelSerializer):
             'province_name',
             'verification_status',
             'is_public',
+            'is_disabled',
             'profile_completion_percentage',
             'email',
             'created_at',

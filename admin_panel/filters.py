@@ -9,11 +9,12 @@ from profiles.models import Profile
 
 class AdminProfileFilter(django_filters.FilterSet):
     verification_status = django_filters.ChoiceFilter(choices=Profile.VerificationStatus.choices)
+    is_disabled = django_filters.BooleanFilter()
     search = django_filters.CharFilter(method='filter_search')
 
     class Meta:
         model = Profile
-        fields = ['verification_status']
+        fields = ['verification_status', 'is_disabled']
 
     def filter_search(self, queryset, name, value):
         if value:

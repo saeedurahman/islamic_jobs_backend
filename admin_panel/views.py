@@ -81,7 +81,7 @@ class AdminProfileVerifyView(APIView):
         return Response(output.data)
 
 
-class AdminProfileDetailView(generics.RetrieveAPIView):
+class AdminProfileDetailView(generics.RetrieveDestroyAPIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
     serializer_class = AdminProfileDetailSerializer
 
@@ -90,6 +90,46 @@ class AdminProfileDetailView(generics.RetrieveAPIView):
             Profile.objects.select_related(*PROFILE_DETAIL_SELECT_RELATED)
             .prefetch_related(*PROFILE_DETAIL_PREFETCH)
         )
+
+
+class AdminProfileDisableView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def patch(self, request, pk):
+        profile = get_object_or_404(
+            Profile.objects.select_related('user', 'province', 'city'),
+            pk=pk,
+        )
+        if profile.is_disabled:
+            return Response(
+                {'detail': 'Profile is already disabled.', 'is_disabled': True},
+                status=status.HTTP_200_OK,
+            )
+
+        profile.is_disabled = True
+        profile.save(update_fields=['is_disabled'])
+        output = AdminProfileListSerializer(profile, context={'request': request})
+        return Response({'detail': 'Profile disabled.', 'profile': output.data})
+
+
+class AdminProfileEnableView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def patch(self, request, pk):
+        profile = get_object_or_404(
+            Profile.objects.select_related('user', 'province', 'city'),
+            pk=pk,
+        )
+        if not profile.is_disabled:
+            return Response(
+                {'detail': 'Profile is already enabled.', 'is_disabled': False},
+                status=status.HTTP_200_OK,
+            )
+
+        profile.is_disabled = False
+        profile.save(update_fields=['is_disabled'])
+        output = AdminProfileListSerializer(profile, context={'request': request})
+        return Response({'detail': 'Profile enabled.', 'profile': output.data})
 
 
 class AdminEmployerListView(generics.ListAPIView):

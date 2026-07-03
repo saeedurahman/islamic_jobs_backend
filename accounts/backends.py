@@ -4,6 +4,15 @@ from .models import User
 from .utils import resolve_user_by_identifier
 
 
+def is_disabled_job_seeker(user):
+    if user.user_role != User.Role.JOB_SEEKER:
+        return False
+    try:
+        return user.profile.is_disabled
+    except Exception:
+        return False
+
+
 class EmailOrPhoneBackend(ModelBackend):
     """Authenticate using email or phone number plus password."""
 
@@ -19,7 +28,11 @@ class EmailOrPhoneBackend(ModelBackend):
         if user is None:
             return None
 
-        if user.check_password(password) and self.user_can_authenticate(user):
+        if (
+            user.check_password(password)
+            and not is_disabled_job_seeker(user)
+            and self.user_can_authenticate(user)
+        ):
             return user
         return None
 

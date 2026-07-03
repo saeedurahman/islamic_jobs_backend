@@ -59,6 +59,7 @@ class ProfileListView(generics.ListAPIView):
         return (
             Profile.objects.filter(
                 is_public=True,
+                is_disabled=False,
                 verification_status=Profile.VerificationStatus.VERIFIED,
             )
             .select_related('province', 'city')

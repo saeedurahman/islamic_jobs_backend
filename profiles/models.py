@@ -145,6 +145,7 @@ class Profile(models.Model):
         default=VerificationStatus.PENDING,
     )
     is_public = models.BooleanField(default=False)
+    is_disabled = models.BooleanField(default=False)
     show_contact_publicly = models.BooleanField(
         default=False,
         help_text='When verified, allow contact email and WhatsApp on the public profile.',
@@ -174,6 +175,7 @@ class Profile(models.Model):
         return (
             self.is_public
             and self.verification_status == self.VerificationStatus.VERIFIED
+            and not self.is_disabled
         )
 
     def _has_personal_info_complete(self):

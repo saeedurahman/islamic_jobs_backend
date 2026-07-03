@@ -11,6 +11,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import serializers
 
 from .models import User
+from .backends import is_disabled_job_seeker
 from .utils import (
     generate_username,
     is_valid_pakistani_phone,
@@ -27,6 +28,9 @@ PASSWORD_RESET_INVALID_MESSAGE = (
     'This password reset link is invalid or has expired. Please request a new one.'
 )
 INTERNAL_EMAIL_DOMAINS = ('islamicjobz.internal',)
+ACCOUNT_DISABLED_MESSAGE = (
+    'This account has been disabled. Contact support if you believe this is an error.'
+)
 
 
 def _format_password_reset_timeout() -> str:
@@ -145,6 +149,15 @@ class LoginSerializer(serializers.Serializer):
             password=password,
         )
         if user is None:
+            candidate_user = resolve_user_by_identifier(identifier)
+            if (
+                candidate_user is not None
+                and candidate_user.check_password(password)
+                and is_disabled_job_seeker(candidate_user)
+            ):
+                raise serializers.ValidationError(
+                    {'non_field_errors': [ACCOUNT_DISABLED_MESSAGE]}
+                )
             raise serializers.ValidationError({'non_field_errors': ['invalid credentials']})
 
         attrs['user'] = user

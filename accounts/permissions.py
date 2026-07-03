@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission
 
+from accounts.backends import is_disabled_job_seeker
 from accounts.models import User
 
 
@@ -20,10 +21,14 @@ class IsJobSeeker(BasePermission):
     )
 
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated
-            and request.user.user_role == User.Role.JOB_SEEKER
-        )
+        if not request.user.is_authenticated or request.user.user_role != User.Role.JOB_SEEKER:
+            return False
+        if is_disabled_job_seeker(request.user):
+            self.message = (
+                'This account has been disabled. Contact support if you believe this is an error.'
+            )
+            return False
+        return True
 
 
 class IsEmployer(BasePermission):
