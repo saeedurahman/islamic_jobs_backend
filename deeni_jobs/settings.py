@@ -18,6 +18,7 @@ ALLOWED_HOSTS = config(
     default='localhost,127.0.0.1,islamicjobz.com,www.islamicjobz.com',
     cast=Csv(),
 )
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000').rstrip('/')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

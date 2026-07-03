@@ -9,6 +9,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .serializers import (
     LoginSerializer,
     MeUpdateSerializer,
+    PASSWORD_RESET_SUCCESS_MESSAGE,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -55,6 +58,32 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response({'detail': PASSWORD_RESET_SUCCESS_MESSAGE}, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if not serializer.is_valid():
+            if 'detail' in serializer.errors:
+                detail = serializer.errors['detail']
+                if isinstance(detail, list):
+                    detail = detail[0]
+                return Response({'detail': str(detail)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response({'detail': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):

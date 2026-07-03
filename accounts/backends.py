@@ -1,7 +1,7 @@
 from django.contrib.auth.backends import ModelBackend
 
 from .models import User
-from .utils import normalize_phone_number
+from .utils import resolve_user_by_identifier
 
 
 class EmailOrPhoneBackend(ModelBackend):
@@ -15,13 +15,7 @@ class EmailOrPhoneBackend(ModelBackend):
         if not identifier:
             return None
 
-        identifier = identifier.strip()
-
-        user = User.objects.filter(email__iexact=identifier).first()
-        if user is None:
-            normalized_phone = normalize_phone_number(identifier)
-            user = User.objects.filter(phone_number=normalized_phone).first()
-
+        user = resolve_user_by_identifier(identifier)
         if user is None:
             return None
 

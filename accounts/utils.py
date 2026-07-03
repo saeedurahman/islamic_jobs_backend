@@ -14,6 +14,19 @@ def normalize_phone_number(value: str) -> str:
     return normalized
 
 
+def resolve_user_by_identifier(identifier: str):
+    """Return a user matching email or normalized phone number."""
+    from accounts.models import User
+
+    identifier = identifier.strip()
+    user = User.objects.filter(email__iexact=identifier).first()
+    if user is not None:
+        return user
+
+    normalized_phone = normalize_phone_number(identifier)
+    return User.objects.filter(phone_number=normalized_phone).first()
+
+
 def is_valid_pakistani_phone(value: str) -> bool:
     return bool(PAKISTANI_PHONE_PATTERN.match(value))
 
