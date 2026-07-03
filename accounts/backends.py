@@ -7,9 +7,15 @@ from .utils import normalize_phone_number
 class EmailOrPhoneBackend(ModelBackend):
     """Authenticate using email or phone number plus password."""
 
-    def authenticate(self, request, identifier=None, password=None, **kwargs):
-        if identifier is None or password is None:
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        if password is None:
             return None
+
+        identifier = kwargs.get('identifier') or username
+        if not identifier:
+            return None
+
+        identifier = identifier.strip()
 
         user = User.objects.filter(email__iexact=identifier).first()
         if user is None:
