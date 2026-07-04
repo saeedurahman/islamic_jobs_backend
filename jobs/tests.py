@@ -124,3 +124,26 @@ class SavedJobAPITests(TestCase):
         self.assertEqual(closed_response.data['status'], JobPosting.Status.CLOSED)
         self.assertEqual(filled_response.status_code, status.HTTP_200_OK)
         self.assertEqual(filled_response.data['status'], JobPosting.Status.FILLED)
+
+    def test_job_search_ranks_exact_title_match_before_description_match(self):
+        title_match = self._create_job('Senior Imam')
+        description_match = self._create_job('Teacher')
+        description_match.description = 'Needs an imam for evening classes'
+        description_match.save(update_fields=['description'])
+
+        response = self.client.get(reverse('job-list-create'), {'search': 'imam'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result_ids = [item['id'] for item in response.data['results']]
+        self.assertIn(title_match.pk, result_ids)
+        self.assertIn(description_match.pk, result_ids)
+        self.assertLess(result_ids.index(title_match.pk), result_ids.index(description_match.pk))
+
+    def test_job_search_allows_typo_with_trigram_similarity(self):
+        imam_job = self._create_job('Imam')
+
+        response = self.client.get(reverse('job-list-create'), {'search': 'imaam'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        result_ids = [item['id'] for item in response.data['results']]
+        self.assertIn(imam_job.pk, result_ids)

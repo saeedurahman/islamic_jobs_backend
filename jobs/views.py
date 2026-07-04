@@ -4,7 +4,6 @@ from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status
 from rest_framework.exceptions import NotFound
-from rest_framework.filters import SearchFilter
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -51,8 +50,7 @@ def with_saved_status(queryset, user):
 class JobListCreateView(generics.ListCreateAPIView):
     pagination_class = JobPagination
     filterset_class = JobPostingFilter
-    filter_backends = [DjangoFilterBackend, SearchFilter]
-    search_fields = ['title', 'description']
+    filter_backends = [DjangoFilterBackend]
 
     def get_permissions(self):
         if self.request.method == 'POST':

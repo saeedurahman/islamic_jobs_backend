@@ -1,4 +1,5 @@
-from django.db.models import Q
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector, TrigramSimilarity
+from django.db.models import ExpressionWrapper, F, FloatField, Q, Value
 from django.utils import timezone
 
 import django_filters
@@ -15,6 +16,7 @@ class JobPostingFilter(django_filters.FilterSet):
     salary_min = django_filters.NumberFilter(method='filter_salary_min')
     experience_required = django_filters.ChoiceFilter(choices=JobPosting.ExperienceRequired.choices)
     sect = django_filters.ChoiceFilter(choices=JobPosting.Sect.choices)
+    search = django_filters.CharFilter(method='filter_search')
     required_languages = django_filters.ModelMultipleChoiceFilter(
         field_name='required_languages',
         queryset=Language.objects.all(),
@@ -29,6 +31,7 @@ class JobPostingFilter(django_filters.FilterSet):
             'salary_min',
             'experience_required',
             'sect',
+            'search',
             'required_languages',
         ]
 
@@ -39,3 +42,36 @@ class JobPostingFilter(django_filters.FilterSet):
             Q(salary_max__gte=value)
             | Q(salary_max__isnull=True, salary_min__gte=value)
         ).distinct()
+
+    def filter_search(self, queryset, name, value):
+        search_term = (value or '').strip()
+        if not search_term:
+            return queryset
+
+        search_vector = (
+            SearchVector('title', weight='A')
+            + SearchVector('description', weight='B')
+        )
+        search_query = SearchQuery(search_term, search_type='websearch')
+
+        return (
+            queryset.annotate(
+                search_rank=SearchRank(search_vector, search_query),
+                title_similarity=TrigramSimilarity('title', search_term),
+                description_similarity=TrigramSimilarity('description', search_term),
+            )
+            .annotate(
+                search_score=ExpressionWrapper(
+                    F('search_rank')
+                    + F('title_similarity')
+                    + (F('description_similarity') * Value(0.5)),
+                    output_field=FloatField(),
+                )
+            )
+            .filter(
+                Q(search_rank__gt=0)
+                | Q(title_similarity__gt=0.2)
+                | Q(description_similarity__gt=0.2)
+            )
+            .order_by('-search_score', '-created_at')
+        )
