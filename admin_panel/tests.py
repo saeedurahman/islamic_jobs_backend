@@ -7,6 +7,7 @@ from rest_framework.test import APIClient
 from accounts.serializers import ACCOUNT_DISABLED_MESSAGE
 from accounts.models import User
 from applications.models import Application
+from employers.models import Employer
 from jobs.models import JobPosting, SavedJob
 from notifications.models import Notification
 from profiles.models import HifzEducation, Profile
@@ -269,3 +270,177 @@ class AdminProfileDisableTests(TestCase):
         self.assertFalse(Profile.objects.filter(pk=self.profile.pk).exists())
         self.assertFalse(HifzEducation.objects.filter(profile_id=self.profile.pk).exists())
         self.assertFalse(Application.objects.filter(pk=application_id).exists())
+
+
+class AdminUserHardDeleteTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.admin_user = User.objects.create_user(
+            username='admin-user-delete',
+            email='admin-user-delete@example.com',
+            phone_number='03000000003',
+            user_role=User.Role.ADMIN,
+            password='AdminPassword123!',
+        )
+        self.client.force_authenticate(user=self.admin_user)
+
+    def _create_employer_user(self, suffix=''):
+        employer_user = User.objects.create_user(
+            username=f'employer-delete{suffix}',
+            email=f'employer-delete{suffix}@example.com',
+            phone_number=f'0311111111{suffix or 0}',
+            user_role=User.Role.EMPLOYER,
+            password='OldPassword123!',
+        )
+        employer = employer_user.employer_profile
+        employer.organization_name = 'Delete Test Employer'
+        employer.save(update_fields=['organization_name'])
+        return employer_user
+
+    def _create_job(self, employer):
+        return JobPosting.objects.create(
+            employer=employer,
+            title='Delete Test Job',
+            description='A job for cascade testing.',
+            category=Profile.UserCategory.IMAM,
+            employment_type=JobPosting.EmploymentType.FULL_TIME,
+            experience_required=JobPosting.ExperienceRequired.FRESH,
+        )
+
+    def test_admin_can_hard_delete_job_seeker_and_reuse_email_phone(self):
+        seeker_user = User.objects.create_user(
+            username='delete-seeker',
+            email='delete-seeker@example.com',
+            phone_number='03009990000',
+            user_role=User.Role.JOB_SEEKER,
+            password='OldPassword123!',
+        )
+        employer_user = self._create_employer_user('1')
+        profile = seeker_user.profile
+        profile.full_name = 'Delete Seeker'
+        profile.user_category = Profile.UserCategory.IMAM
+        profile.save(update_fields=['full_name', 'user_category'])
+        HifzEducation.objects.create(
+            profile=profile,
+            madrasa_name='Delete Test Madrasa',
+            completion_year=2012,
+        )
+        job = self._create_job(employer_user.employer_profile)
+        application = Application.objects.create(job=job, applicant=profile)
+        saved_job = SavedJob.objects.create(user=seeker_user, job=job)
+        recipient_notification = Notification.objects.create(
+            recipient=seeker_user,
+            notification_type=Notification.NotificationType.JOB_MATCH,
+            title='Saved job reminder',
+            message='A reminder.',
+            related_job=job,
+        )
+        application_notification = Notification.objects.create(
+            recipient=employer_user,
+            notification_type=Notification.NotificationType.APPLICATION_STATUS_CHANGE,
+            title='Application update',
+            message='An application update.',
+            related_application=application,
+        )
+
+        response = self.client.delete(
+            reverse('admin-user-hard-delete', kwargs={'pk': seeker_user.pk})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(User.objects.filter(pk=seeker_user.pk).exists())
+        self.assertFalse(Profile.objects.filter(pk=profile.pk).exists())
+        self.assertFalse(HifzEducation.objects.filter(profile_id=profile.pk).exists())
+        self.assertFalse(Application.objects.filter(pk=application.pk).exists())
+        self.assertFalse(SavedJob.objects.filter(pk=saved_job.pk).exists())
+        self.assertFalse(Notification.objects.filter(pk=recipient_notification.pk).exists())
+        self.assertFalse(Notification.objects.filter(pk=application_notification.pk).exists())
+
+        self.client.force_authenticate(user=None)
+        register_response = self.client.post(
+            reverse('auth-register'),
+            {
+                'email': 'delete-seeker@example.com',
+                'phone_number': '03009990000',
+                'password': 'NewPassword123!',
+                'password_confirm': 'NewPassword123!',
+                'user_role': User.Role.JOB_SEEKER,
+                'first_name': 'New',
+                'last_name': 'Seeker',
+            },
+            format='json',
+        )
+        self.assertEqual(register_response.status_code, status.HTTP_201_CREATED)
+
+    def test_admin_can_hard_delete_employer_and_cascade_jobs(self):
+        employer_user = self._create_employer_user('2')
+        seeker_user = User.objects.create_user(
+            username='delete-employer-applicant',
+            email='delete-employer-applicant@example.com',
+            phone_number='03008880000',
+            user_role=User.Role.JOB_SEEKER,
+            password='OldPassword123!',
+        )
+        profile = seeker_user.profile
+        profile.user_category = Profile.UserCategory.IMAM
+        profile.save(update_fields=['user_category'])
+        employer = employer_user.employer_profile
+        job = self._create_job(employer)
+        application = Application.objects.create(job=job, applicant=profile)
+        saved_job = SavedJob.objects.create(user=seeker_user, job=job)
+        employer_notification = Notification.objects.create(
+            recipient=employer_user,
+            notification_type=Notification.NotificationType.OTHER,
+            title='Employer notification',
+            message='A notification.',
+        )
+        job_notification = Notification.objects.create(
+            recipient=seeker_user,
+            notification_type=Notification.NotificationType.JOB_MATCH,
+            title='Job notification',
+            message='A job notification.',
+            related_job=job,
+        )
+
+        response = self.client.delete(
+            reverse('admin-user-hard-delete', kwargs={'pk': employer_user.pk})
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(User.objects.filter(pk=employer_user.pk).exists())
+        self.assertFalse(Employer.objects.filter(pk=employer.pk).exists())
+        self.assertFalse(JobPosting.objects.filter(pk=job.pk).exists())
+        self.assertFalse(Application.objects.filter(pk=application.pk).exists())
+        self.assertFalse(SavedJob.objects.filter(pk=saved_job.pk).exists())
+        self.assertFalse(Notification.objects.filter(pk=employer_notification.pk).exists())
+        self.assertFalse(Notification.objects.filter(pk=job_notification.pk).exists())
+
+    def test_admin_user_hard_delete_blocks_self_delete_and_admin_targets(self):
+        other_admin = User.objects.create_user(
+            username='other-admin',
+            email='other-admin@example.com',
+            phone_number='03007770000',
+            user_role=User.Role.ADMIN,
+            password='AdminPassword123!',
+        )
+
+        self_response = self.client.delete(
+            reverse('admin-user-hard-delete', kwargs={'pk': self.admin_user.pk})
+        )
+        other_admin_response = self.client.delete(
+            reverse('admin-user-hard-delete', kwargs={'pk': other_admin.pk})
+        )
+
+        self.assertEqual(self_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self_response.data['detail'],
+            'You cannot delete your own admin account.',
+        )
+        self.assertEqual(other_admin_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            other_admin_response.data['detail'],
+            'Admin accounts cannot be deleted from this endpoint.',
+        )
+        self.assertTrue(User.objects.filter(pk=self.admin_user.pk).exists())
+        self.assertTrue(User.objects.filter(pk=other_admin.pk).exists())

@@ -51,6 +51,16 @@ class Profile(models.Model):
         QURAN_TEACHER = 'quran_teacher', 'Quran Teacher'
         ISLAMIC_LECTURER = 'islamic_lecturer', 'Islamic Lecturer'
         INDIVIDUAL = 'individual', 'Individual'
+        HIFZ_TEACHER = 'hifz_teacher', 'Hifz Teacher'
+        NAZIRA_TEACHER = 'nazira_teacher', 'Nazira Teacher'
+        AALIM = 'aalim', 'Aalim'
+        KHADIM_MASJID = 'khadim_masjid', 'Khadim-e-Masjid'
+        OTHER = 'other', 'Other'
+
+    class EmploymentTypePreference(models.TextChoices):
+        FULL_TIME = 'full_time', 'Full-Time'
+        PART_TIME = 'part_time', 'Part-Time'
+        EITHER = 'either', 'Either'
 
     class VerificationStatus(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -75,6 +85,8 @@ class Profile(models.Model):
     whatsapp_number = models.CharField(max_length=15, blank=True, default='')
     contact_phone = models.CharField(max_length=15, blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
+    facebook_url = models.URLField(blank=True, null=True)
+    linkedin_url = models.URLField(blank=True, null=True)
 
     province = models.ForeignKey(
         'locations.Province',
@@ -108,6 +120,12 @@ class Profile(models.Model):
     user_category = models.CharField(
         max_length=30,
         choices=UserCategory.choices,
+        null=True,
+        blank=True,
+    )
+    preferred_employment_type = models.CharField(
+        max_length=20,
+        choices=EmploymentTypePreference.choices,
         null=True,
         blank=True,
     )
@@ -274,21 +292,13 @@ class DarseNizami(models.Model):
 
 
 class MuftiCourse(models.Model):
-    class TakhassusSubject(models.TextChoices):
-        HADITH = 'hadith', 'Hadith'
-        FIQH = 'fiqh', 'Fiqh'
-        TAFSIR = 'tafsir', 'Tafsir'
-        ARABIC = 'arabic', 'Arabic'
-        IFTA = 'ifta', 'Ifta'
-        OTHER = 'other', 'Other'
-
     profile = models.ForeignKey(
         Profile,
         on_delete=models.CASCADE,
         related_name='mufti_course_records',
     )
     madrasa_name = models.CharField(max_length=200)
-    takhassus_subject = models.CharField(max_length=20, choices=TakhassusSubject.choices)
+    takhassus_subject = models.CharField(max_length=200)
     completion_year = models.PositiveIntegerField(
         null=True,
         blank=True,

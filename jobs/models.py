@@ -6,6 +6,10 @@ from profiles.models import Language, Profile
 
 
 class JobPosting(models.Model):
+    class EmploymentType(models.TextChoices):
+        FULL_TIME = 'full_time', 'Full-Time'
+        PART_TIME = 'part_time', 'Part-Time'
+
     class ExperienceRequired(models.TextChoices):
         FRESH = 'fresh', 'Fresh'
         ONE_TO_THREE = '1_3_years', '1–3 years'
@@ -34,6 +38,11 @@ class JobPosting(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     category = models.CharField(max_length=30, choices=Profile.UserCategory.choices)
+    employment_type = models.CharField(
+        max_length=20,
+        choices=EmploymentType.choices,
+        default=EmploymentType.FULL_TIME,
+    )
 
     province = models.ForeignKey(
         'locations.Province',

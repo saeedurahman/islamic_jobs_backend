@@ -229,6 +229,26 @@ class AdminUserListView(generics.ListAPIView):
         return User.objects.order_by('-created_at')
 
 
+class AdminUserHardDeleteView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def delete(self, request, pk):
+        user = get_object_or_404(User, pk=pk)
+        if user.pk == request.user.pk:
+            return Response(
+                {'detail': 'You cannot delete your own admin account.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if user.user_role == User.Role.ADMIN:
+            return Response(
+                {'detail': 'Admin accounts cannot be deleted from this endpoint.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class AdminStatsView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 

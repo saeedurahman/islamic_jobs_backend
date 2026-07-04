@@ -14,6 +14,7 @@ from .views import (
     AdminProfileListView,
     AdminProfileVerifyView,
     AdminStatsView,
+    AdminUserHardDeleteView,
     AdminUserListView,
 )
 
@@ -31,5 +32,6 @@ urlpatterns = [
     path('jobs/<int:pk>/remove/', AdminJobRemoveView.as_view(), name='admin-job-remove'),
     path('jobs/<int:pk>/', AdminJobHardDeleteView.as_view(), name='admin-job-hard-delete'),
     path('users/', AdminUserListView.as_view(), name='admin-user-list'),
+    path('users/<int:pk>/', AdminUserHardDeleteView.as_view(), name='admin-user-hard-delete'),
     path('stats/', AdminStatsView.as_view(), name='admin-stats'),
 ]

@@ -11,6 +11,7 @@ from .models import JobPosting
 
 class JobPostingFilter(django_filters.FilterSet):
     category = django_filters.ChoiceFilter(choices=Profile.UserCategory.choices)
+    employment_type = django_filters.ChoiceFilter(choices=JobPosting.EmploymentType.choices)
     province = django_filters.NumberFilter(field_name='province_id')
     city = django_filters.NumberFilter(field_name='city_id')
     salary_min = django_filters.NumberFilter(method='filter_salary_min')
@@ -26,6 +27,7 @@ class JobPostingFilter(django_filters.FilterSet):
         model = JobPosting
         fields = [
             'category',
+            'employment_type',
             'province',
             'city',
             'salary_min',
